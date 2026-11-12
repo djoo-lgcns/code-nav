@@ -1,0 +1,30 @@
+{
+  "name": "@djoo-lgcns/code-nav",
+  "version": "1.0.0",
+  "description": "Zero-Noise AST-Based Code Navigator & MCP Server for AI Coding Agents",
+  "main": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "code-nav": "./dist/code-nav"
+  },
+  "scripts": {
+    "build": "bun build --compile src/index.ts --outfile dist/code-nav",
+    "test": "bun test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/djoo-lgcns/code-nav.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ast-grep",
+    "code-navigation",
+    "ai-agents",
+    "claude-code",
+    "antigravity",
+    "kiro-cli"
+  ],
+  "author": "djoo-lgcns",
+  "license": "MIT"
+}
