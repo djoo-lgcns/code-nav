@@ -9,19 +9,27 @@ AI 에이전트(Claude Code, Antigravity, Kiro CLI, Cursor 등)가 `grep`이나 
 
 ## 1. 1-Liner 원클릭 설치
 
-터미널에서 쉘 환경(`bash` 또는 `zsh`)에 맞춰 아래 한 줄을 실행합니다.
+터미널 환경에 맞춰 아래 한 줄을 실행합니다.
 
-### Bash 사용자
+### Linux / macOS (Bash)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/djoo-lgcns/code-nav/main/install.sh | bash
 ```
 
-### Zsh 사용자
+### macOS (Zsh)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/djoo-lgcns/code-nav/main/install.sh | zsh
 ```
 
-* **설치 위치**: `~/.local/bin/code-nav` (의존성 없는 독립 바이너리)
+### Windows (PowerShell)
+PowerShell을 열고 아래 명령어를 실행합니다:
+```powershell
+irm https://raw.githubusercontent.com/djoo-lgcns/code-nav/main/install.ps1 | iex
+```
+
+* **설치 위치**: 
+  * Linux/macOS: `~/.local/bin/code-nav`
+  * Windows: `%USERPROFILE%\.local\bin\code-nav.exe` (자동으로 사용자 PATH 등록)
 * **설치 검증**:
   ```bash
   code-nav --version
