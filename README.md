@@ -13,14 +13,25 @@ Language Server(LSP) 데몬 없이, 내장된 AST 엔진(`ast-grep`)을 통해 *
 
 * **Node.js** (v18 이상)
 * **ast-grep** (글로벌 설치)
-  ```bash
-  # npm 사용자
-  npm install -g @ast-grep/cli
-  # 또는 Homebrew (macOS)
-  brew install ast-grep
-  # 또는 Cargo
-  cargo install ast-grep --locked
-  ```
+  * **Windows**:
+    ```powershell
+    # winget (추천)
+    winget install ast-grep.ast-grep
+    # 또는 npm
+    npm install -g @ast-grep/cli
+    # 또는 Scoop / Cargo
+    scoop install ast-grep
+    cargo install ast-grep --locked
+    ```
+  * **macOS / Linux**:
+    ```bash
+    # Homebrew (macOS)
+    brew install ast-grep
+    # 또는 npm
+    npm install -g @ast-grep/cli
+    # 또는 Cargo
+    cargo install ast-grep --locked
+    ```
 
 ---
 

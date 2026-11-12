@@ -23,6 +23,15 @@ function runAstGrepRule(yamlRule: string, targetPath: string = "."): MatchResult
     maxBuffer: 20 * 1024 * 1024,
   });
 
+  if (res.error) {
+    if ((res.error as any).code === "ENOENT") {
+      throw new Error(
+        "'ast-grep' binary is not found in PATH. Please install it to use code-nav: 'npm install -g @ast-grep/cli' or 'winget install ast-grep.ast-grep' (Windows) or 'brew install ast-grep' (macOS)."
+      );
+    }
+    throw res.error;
+  }
+
   if (!res.stdout) return [];
   try {
     const list = JSON.parse(res.stdout);
@@ -300,67 +309,79 @@ function runMcpServer() {
       if (method === "tools/call") {
         const { name, arguments: toolArgs } = params;
 
-        if (name === "code_nav_def") {
-          const defs = findDefinitions(toolArgs.symbol, toolArgs.path || ".");
-          const formatted = defs.map(d => `${d.file}:${d.line} -> ${d.signature}`).join("\n");
-          sendMcp({
-            jsonrpc: "2.0",
-            id,
-            result: {
-              content: [{ type: "text", text: formatted || `No definition found for '${toolArgs.symbol}'` }],
-            },
-          });
-          return;
-        }
-
-        if (name === "code_nav_refs") {
-          const refs = findReferences(toolArgs.symbol, toolArgs.path || ".");
-          const formatted = refs.map(r => `${r.file}:${r.line} -> ${r.signature}`).join("\n");
-          sendMcp({
-            jsonrpc: "2.0",
-            id,
-            result: {
-              content: [{ type: "text", text: formatted || `No references found for '${toolArgs.symbol}'` }],
-            },
-          });
-          return;
-        }
-
-        if (name === "code_nav_outline") {
-          const outline = outlineFile(toolArgs.filePath);
-          const formatted = outline.map(o => `Line ${String(o.line).padStart(4)}: ${o.signature}`).join("\n");
-          sendMcp({
-            jsonrpc: "2.0",
-            id,
-            result: {
-              content: [{ type: "text", text: formatted || `No outline symbols found in '${toolArgs.filePath}'` }],
-            },
-          });
-          return;
-        }
-
-        if (name === "code_nav_repomap") {
-          const map = generateRepoMap(toolArgs.path || ".");
-          let text = `Repo Map (${map.size} files):\n`;
-          for (const [file, items] of map.entries()) {
-            text += `\n📁 ${file}\n` + items.map(i => `   └─ ${i}`).join("\n");
+        try {
+          if (name === "code_nav_def") {
+            const defs = findDefinitions(toolArgs.symbol, toolArgs.path || ".");
+            const formatted = defs.map(d => `${d.file}:${d.line} -> ${d.signature}`).join("\n");
+            sendMcp({
+              jsonrpc: "2.0",
+              id,
+              result: {
+                content: [{ type: "text", text: formatted || `No definition found for '${toolArgs.symbol}'` }],
+              },
+            });
+            return;
           }
+
+          if (name === "code_nav_refs") {
+            const refs = findReferences(toolArgs.symbol, toolArgs.path || ".");
+            const formatted = refs.map(r => `${r.file}:${r.line} -> ${r.signature}`).join("\n");
+            sendMcp({
+              jsonrpc: "2.0",
+              id,
+              result: {
+                content: [{ type: "text", text: formatted || `No references found for '${toolArgs.symbol}'` }],
+              },
+            });
+            return;
+          }
+
+          if (name === "code_nav_outline") {
+            const outline = outlineFile(toolArgs.filePath);
+            const formatted = outline.map(o => `Line ${String(o.line).padStart(4)}: ${o.signature}`).join("\n");
+            sendMcp({
+              jsonrpc: "2.0",
+              id,
+              result: {
+                content: [{ type: "text", text: formatted || `No outline symbols found in '${toolArgs.filePath}'` }],
+              },
+            });
+            return;
+          }
+
+          if (name === "code_nav_repomap") {
+            const map = generateRepoMap(toolArgs.path || ".");
+            let text = `Repo Map (${map.size} files):\n`;
+            for (const [file, items] of map.entries()) {
+              text += `\n📁 ${file}\n` + items.map(i => `   └─ ${i}`).join("\n");
+            }
+            sendMcp({
+              jsonrpc: "2.0",
+              id,
+              result: {
+                content: [{ type: "text", text }],
+              },
+            });
+            return;
+          }
+
+          sendMcp({
+            jsonrpc: "2.0",
+            id,
+            error: { code: -32601, message: `Tool not found: ${name}` },
+          });
+          return;
+        } catch (err: any) {
           sendMcp({
             jsonrpc: "2.0",
             id,
             result: {
-              content: [{ type: "text", text }],
+              isError: true,
+              content: [{ type: "text", text: `[code-nav Error] ${err.message}` }],
             },
           });
           return;
         }
-
-        sendMcp({
-          jsonrpc: "2.0",
-          id,
-          error: { code: -32601, message: `Tool not found: ${name}` },
-        });
-        return;
       }
 
       sendMcp({
