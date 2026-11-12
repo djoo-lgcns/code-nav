@@ -6,10 +6,19 @@ var __require = /* @__PURE__ */ createRequire(import.meta.url);
 import { spawnSync } from "child_process";
 import * as path from "path";
 import * as readline from "readline";
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\\\$&");
+}
+var IGNORE_PATTERNS = [
+  /(^|[/\\])(node_modules|build|dist|target|\.git|\.gradle|__pycache__|\.venv|venv|\.pytest_cache)($|[/\\])/i
+];
+function isIgnoredPath(filePath) {
+  return IGNORE_PATTERNS.some((pat) => pat.test(filePath));
+}
 function runAstGrepRule(yamlRule, targetPath = ".") {
   const res = spawnSync("ast-grep", ["scan", "--inline-rules", yamlRule, "--json", targetPath], {
     encoding: "utf-8",
-    maxBuffer: 20 * 1024 * 1024
+    maxBuffer: 30 * 1024 * 1024
   });
   if (res.error) {
     if (res.error.code === "ENOENT") {
@@ -38,23 +47,24 @@ function runAstGrepRule(yamlRule, targetPath = ".") {
   }
 }
 function findDefinitions(symbol, targetPath = ".") {
+  const safeSym = escapeRegex(symbol);
   const javaRule = `
 id: JavaDef
 language: java
 rule:
   any:
     - kind: class_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: interface_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: enum_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: record_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: method_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: constructor_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
 `;
   const tsRule = `
 id: TSDef
@@ -62,29 +72,40 @@ language: ts
 rule:
   any:
     - kind: class_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: interface_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: type_alias_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: enum_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: function_declaration
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: method_definition
-      has: { field: name, regex: "^${symbol}$" }
+      has: { field: name, regex: "^${safeSym}$" }
     - kind: variable_declarator
       has:
         field: name
-        regex: "^${symbol}$"
+        regex: "^${safeSym}$"
+`;
+  const pythonRule = `
+id: PyDef
+language: python
+rule:
+  any:
+    - kind: class_definition
+      has: { field: name, regex: "^${safeSym}$" }
+    - kind: function_definition
+      has: { field: name, regex: "^${safeSym}$" }
 `;
   const results = [
     ...runAstGrepRule(javaRule, targetPath),
-    ...runAstGrepRule(tsRule, targetPath)
+    ...runAstGrepRule(tsRule, targetPath),
+    ...runAstGrepRule(pythonRule, targetPath)
   ];
   const seen = new Set;
   return results.filter((r) => {
-    if (r.file.includes("build/") || r.file.includes("node_modules/") || r.file.includes(".git/"))
+    if (isIgnoredPath(r.file))
       return false;
     const key = `${r.file}:${r.line}`;
     if (seen.has(key))
@@ -99,28 +120,35 @@ id: JavaRef
 language: java
 rule:
   any:
-    - kind: method_invocation
-      has: { field: name, regex: "^${symbol}$" }
-    - kind: object_creation_expression
-      has: { field: type, regex: "^${symbol}$" }
+    - pattern: "$OBJ.${symbol}($$$)"
+    - pattern: "${symbol}($$$)"
+    - pattern: "new ${symbol}($$$)"
 `;
   const tsRule = `
 id: TSRef
 language: ts
 rule:
   any:
-    - kind: call_expression
-      has: { regex: "${symbol}\\\\(" }
-    - kind: new_expression
-      has: { regex: "new\\\\s+${symbol}" }
+    - pattern: "$OBJ.${symbol}($$$)"
+    - pattern: "${symbol}($$$)"
+    - pattern: "new ${symbol}($$$)"
+`;
+  const pythonRule = `
+id: PyRef
+language: python
+rule:
+  any:
+    - pattern: "$OBJ.${symbol}($$$)"
+    - pattern: "${symbol}($$$)"
 `;
   const results = [
     ...runAstGrepRule(javaRule, targetPath),
-    ...runAstGrepRule(tsRule, targetPath)
+    ...runAstGrepRule(tsRule, targetPath),
+    ...runAstGrepRule(pythonRule, targetPath)
   ];
   const seen = new Set;
   return results.filter((r) => {
-    if (r.file.includes("build/") || r.file.includes("node_modules/") || r.file.includes(".git/"))
+    if (isIgnoredPath(r.file))
       return false;
     const key = `${r.file}:${r.line}`;
     if (seen.has(key))
@@ -130,9 +158,12 @@ rule:
   });
 }
 function outlineFile(filePath) {
-  const ext = path.extname(filePath);
-  const lang = ext === ".java" ? "java" : "ts";
-  const rule = lang === "java" ? `
+  const ext = path.extname(filePath).toLowerCase();
+  let lang = "ts";
+  let rule = "";
+  if (ext === ".java") {
+    lang = "java";
+    rule = `
 id: JavaOutline
 language: java
 rule:
@@ -142,7 +173,20 @@ rule:
     - kind: enum_declaration
     - kind: method_declaration
     - kind: constructor_declaration
-` : `
+`;
+  } else if (ext === ".py") {
+    lang = "python";
+    rule = `
+id: PyOutline
+language: python
+rule:
+  any:
+    - kind: class_definition
+    - kind: function_definition
+`;
+  } else {
+    lang = "ts";
+    rule = `
 id: TSOutline
 language: ts
 rule:
@@ -153,6 +197,7 @@ rule:
     - kind: function_declaration
     - kind: method_definition
 `;
+  }
   const results = runAstGrepRule(rule, filePath);
   results.sort((a, b) => a.line - b.line);
   return results;
@@ -174,13 +219,21 @@ rule:
     - kind: class_declaration
     - kind: interface_declaration
 `;
+  const pyRule = `
+id: PyMap
+language: python
+rule:
+  any:
+    - kind: class_definition
+`;
   const all = [
     ...runAstGrepRule(javaRule, targetPath),
-    ...runAstGrepRule(tsRule, targetPath)
+    ...runAstGrepRule(tsRule, targetPath),
+    ...runAstGrepRule(pyRule, targetPath)
   ];
   const map = new Map;
   for (const m of all) {
-    if (m.file.includes("build/") || m.file.includes("node_modules/") || m.file.includes(".git/"))
+    if (isIgnoredPath(m.file))
       continue;
     const list = map.get(m.file) || [];
     list.push(`L${m.line}: ${m.signature}`);
@@ -364,67 +417,74 @@ function runMcpServer() {
 if (__require.main == __require.module || process.argv[1]?.endsWith("index.js")) {
   const args = process.argv.slice(2);
   const cmd = args[0];
-  if (!cmd || cmd === "--mcp") {
-    runMcpServer();
-  } else if (cmd === "def") {
-    const symbol = args[1];
-    if (!symbol) {
-      console.log("Usage: code-nav def <symbol> [path]");
-      process.exit(1);
-    }
-    const defs = findDefinitions(symbol, args[2] || ".");
-    console.log(`
+  try {
+    if (!cmd || cmd === "--mcp") {
+      runMcpServer();
+    } else if (cmd === "def") {
+      const symbol = args[1];
+      if (!symbol) {
+        console.log("Usage: code-nav def <symbol> [path]");
+        process.exit(1);
+      }
+      const defs = findDefinitions(symbol, args[2] || ".");
+      console.log(`
 === [DEFINITIONS] '${symbol}' (${defs.length} matches) ===`);
-    for (const d of defs) {
-      console.log(`  ${d.file}:${d.line}  ->  ${d.signature}`);
-    }
-  } else if (cmd === "refs") {
-    const symbol = args[1];
-    if (!symbol) {
-      console.log("Usage: code-nav refs <symbol> [path]");
-      process.exit(1);
-    }
-    const refs = findReferences(symbol, args[2] || ".");
-    console.log(`
+      for (const d of defs) {
+        console.log(`  ${d.file}:${d.line}  ->  ${d.signature}`);
+      }
+    } else if (cmd === "refs") {
+      const symbol = args[1];
+      if (!symbol) {
+        console.log("Usage: code-nav refs <symbol> [path]");
+        process.exit(1);
+      }
+      const refs = findReferences(symbol, args[2] || ".");
+      console.log(`
 === [REFERENCES/CALLS] '${symbol}' (${refs.length} matches) ===`);
-    for (const r of refs) {
-      console.log(`  ${r.file}:${r.line}  ->  ${r.signature}`);
-    }
-  } else if (cmd === "outline") {
-    const filePath = args[1];
-    if (!filePath) {
-      console.log("Usage: code-nav outline <filePath>");
-      process.exit(1);
-    }
-    const outline = outlineFile(filePath);
-    console.log(`
+      for (const r of refs) {
+        console.log(`  ${r.file}:${r.line}  ->  ${r.signature}`);
+      }
+    } else if (cmd === "outline") {
+      const filePath = args[1];
+      if (!filePath) {
+        console.log("Usage: code-nav outline <filePath>");
+        process.exit(1);
+      }
+      const outline = outlineFile(filePath);
+      console.log(`
 === [OUTLINE] ${filePath} (${outline.length} symbols) ===`);
-    for (const o of outline) {
-      console.log(`  Line ${String(o.line).padStart(4)}: ${o.signature}`);
-    }
-  } else if (cmd === "repomap") {
-    const map = generateRepoMap(args[1] || ".");
-    console.log(`
+      for (const o of outline) {
+        console.log(`  Line ${String(o.line).padStart(4)}: ${o.signature}`);
+      }
+    } else if (cmd === "repomap") {
+      const map = generateRepoMap(args[1] || ".");
+      console.log(`
 === [REPO MAP] Found ${map.size} files with primary declarations ===
 `);
-    for (const [file, items] of map.entries()) {
-      console.log(`\uD83D\uDCC1 ${file}`);
-      for (const item of items) {
-        console.log(`    └─ ${item}`);
+      for (const [file, items] of map.entries()) {
+        console.log(`\uD83D\uDCC1 ${file}`);
+        for (const item of items) {
+          console.log(`    └─ ${item}`);
+        }
       }
-    }
-  } else if (cmd === "--version" || cmd === "-v") {
-    console.log("code-nav 1.0.0 (AST-Powered MCP Server)");
-  } else {
-    console.log(`
+    } else if (cmd === "--version" || cmd === "-v") {
+      console.log("code-nav 1.0.0 (AST-Powered MCP Server)");
+    } else {
+      console.log(`
 CodeNav v1.0.0 - AST-Powered Code Navigation MCP Server
 GitHub: https://github.com/djoo-lgcns/code-nav
 
 Usage:
-  npx @djoo-lgcns/code-nav              Run as MCP Stdio Server (Default)
-  npx @djoo-lgcns/code-nav def <symbol> Find symbol declaration
-  npx @djoo-lgcns/code-nav outline <file> Outline file symbols
+  npx -y github:djoo-lgcns/code-nav              Run as MCP Stdio Server (Default)
+  npx -y github:djoo-lgcns/code-nav def <symbol> Find symbol declaration
+  npx -y github:djoo-lgcns/code-nav outline <f>  Outline file symbols
 `);
+    }
+  } catch (err) {
+    console.error(`
+❌ [code-nav Error] ${err.message}
+`);
+    process.exit(1);
   }
 }
 export {
