@@ -30,12 +30,12 @@ Language Server(LSP) 데몬 없이, 내장된 AST 엔진(`ast-grep`)을 통해 *
 
 ### A. Claude Code
 ```bash
-claude mcp add code-nav -- npx -y @djoo-lgcns/code-nav
+claude mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 
 ### B. Kiro CLI
 ```bash
-kiro-cli mcp add code-nav -- npx -y @djoo-lgcns/code-nav
+kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 
 ### C. Antigravity / Cursor / Windsurf
@@ -45,7 +45,7 @@ kiro-cli mcp add code-nav -- npx -y @djoo-lgcns/code-nav
   "mcpServers": {
     "code-nav": {
       "command": "npx",
-      "args": ["-y", "@djoo-lgcns/code-nav"]
+      "args": ["-y", "github:djoo-lgcns/code-nav"]
     }
   }
 }
@@ -54,11 +54,15 @@ kiro-cli mcp add code-nav -- npx -y @djoo-lgcns/code-nav
 
 ---
 
-## 3. 프로젝트 지침 주입 (AGENTS.md / team.md)
+## 3. 기본 작동 및 (선택 사항) 프로젝트 헌법 강제
 
-에이전트가 코드 심볼을 찾을 때 `code-nav` MCP 도구를 우선 활용하도록 프로젝트 루트에 아래 한 블록만 기술합니다.
+### 기본 작동: Zero Config (별도 설정 불필요)
+**MCP 등록만 완료하면 끝납니다.** 각 도구의 내부 Description에 이미 최우선 탐색 지침이 내장되어 있으므로, 프로젝트 설정 파일을 전혀 수정하지 않아도 에이전트는 심볼 정의를 찾을 때 `grep` 대신 `code_nav_def`를 스스로 우선 호출합니다.
 
-### Case A. 일반 프로젝트 (`AGENTS.md`)
+### 선택 사항: 팀 표준 워크플로우 강제 (Optional)
+만약 팀 차원에서 **"300줄 넘는 대형 파일은 outline 없이 열지 말 것"** 등 엄격한 3단계 파이프라인을 프로젝트 전체 에이전트에게 강제하고 싶다면 아래 설정을 추가하세요.
+
+#### Case A. 일반 프로젝트 (`AGENTS.md`)
 프로젝트 루트의 `AGENTS.md`에 추가:
 ```markdown
 ## Code Navigation Guidelines
@@ -68,7 +72,7 @@ When searching for code declarations and structure, prefer the `code-nav` MCP to
 - **`code_nav_refs(symbol)`**: Use to find call sites and instantiations.
 ```
 
-### Case B. AI-DLC 프로젝트 (`team.md`)
+#### Case B. AI-DLC 프로젝트 (`team.md`)
 `aidlc/spaces/default/memory/team.md`에 추가:
 ```markdown
 ## Code Navigation Standards
