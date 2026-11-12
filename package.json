@@ -1,15 +1,19 @@
 {
   "name": "@djoo-lgcns/code-nav",
   "version": "1.0.0",
-  "description": "Zero-Noise AST-Based Code Navigator & MCP Server for AI Coding Agents",
-  "main": "src/index.ts",
+  "description": "Zero-Noise AST Code Navigation MCP Server for AI Coding Agents",
+  "main": "index.js",
   "type": "module",
   "bin": {
-    "code-nav": "./dist/code-nav"
+    "code-nav": "./index.js"
   },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
   "scripts": {
-    "build": "bun build --compile src/index.ts --outfile dist/code-nav",
-    "test": "bun test"
+    "build": "bun build --target=node src/index.ts --outfile index.js",
+    "start": "node index.js"
   },
   "repository": {
     "type": "git",
@@ -23,8 +27,9 @@
     "ai-agents",
     "claude-code",
     "antigravity",
-    "kiro-cli"
+    "kiro-cli",
+    "cursor"
   ],
-  "author": "djoo-lgcns",
+  "author": "victor <djoo@lgcns.com>",
   "license": "MIT"
 }

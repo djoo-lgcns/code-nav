@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * code-nav: Zero-Noise AST-Based Code Navigator & MCP Server for AI Agents.
  * Supports CLI mode and MCP Stdio Server mode (--mcp).
@@ -374,12 +374,13 @@ function runMcpServer() {
   });
 }
 
-// ==================== CLI Entrypoint ====================
-if (import.meta.main) {
+// ==================== Entrypoint (Agent-First: Defaults to MCP) ====================
+if (import.meta.main || process.argv[1]?.endsWith("index.js")) {
   const args = process.argv.slice(2);
   const cmd = args[0];
 
-  if (cmd === "--mcp") {
+  if (!cmd || cmd === "--mcp") {
+    // Default mode: MCP Stdio Server for AI Agents
     runMcpServer();
   } else if (cmd === "def") {
     const symbol = args[1];
@@ -424,19 +425,16 @@ if (import.meta.main) {
       }
     }
   } else if (cmd === "--version" || cmd === "-v") {
-    console.log("code-nav 1.0.0 (AST Navigator + MCP Server)");
+    console.log("code-nav 1.0.0 (AST-Powered MCP Server)");
   } else {
     console.log(`
-CodeNav v1.0.0 - Zero-Noise AST Code Navigator & MCP Server
+CodeNav v1.0.0 - AST-Powered Code Navigation MCP Server
 GitHub: https://github.com/djoo-lgcns/code-nav
 
-CLI Commands:
-  code-nav def <symbol> [path]    Find definition of symbol (Class, Interface, Function, Method)
-  code-nav refs <symbol> [path]   Find call sites / instantiations
-  code-nav outline <filePath>     Get file symbol outline with line numbers
-  code-nav repomap [path]         Generate high-level repo map
-  code-nav --mcp                  Run as Model Context Protocol (MCP) Stdio Server
-  code-nav --version              Show version
+Usage:
+  npx @djoo-lgcns/code-nav              Run as MCP Stdio Server (Default)
+  npx @djoo-lgcns/code-nav def <symbol> Find symbol declaration
+  npx @djoo-lgcns/code-nav outline <file> Outline file symbols
 `);
   }
 }
