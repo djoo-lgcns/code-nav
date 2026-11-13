@@ -35,7 +35,7 @@ Kiro CLI (`claude-haiku-5.5`) 환경에서 Spring Boot 샘플 프로젝트 동�
 | **File Reading** | Full file (115 lines) | **Bounded read (25 lines)** | **-78% lines** |
 | **Credit Cost** | 0.0164 | **0.0109** | **-33%** |
 
-*전체 파일을 읽고 줄 번호를 추적하는 CoT(Thinking) 토큰 생성이 54%(570자 $\rightarrow$ 260자) 감소하고, 도구 왕복 1회 단축으로 매 턴 누적 전송되는 14,000 토큰의 입력이 생략됨.*
+*전체 파일을 읽고 줄 번호를 추적하는 CoT(Thinking) 토큰 생성이 54%(570자 -> 260자) 감소하고, 도구 왕복 1회 단축으로 매 턴 누적 전송되는 14,000 토큰의 입력이 생략됨.*
 
 ---
 
@@ -82,7 +82,7 @@ kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 
 ## Agent Directive (Optional)
 
-`AGENTS.md` 또는 `team.md`에 추가하여 에이전트의 탐색 패턴을 강제할 수 있습니다:
+`AGENTS.md` 또는 `team.md`(AI-DLC Workflow 환경에서)에 추가하여 에이전트의 탐색 패턴을 강제할 수 있습니다:
 
 ```markdown
 ## Code Navigation
