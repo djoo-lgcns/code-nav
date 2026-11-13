@@ -39,33 +39,31 @@ Kiro CLI (`claude-haiku-5.5`) 환경에서 Spring Boot 샘플 프로젝트 동�
 
 ---
 
-## Installation (추천: 단 2줄)
-
-Bun으로 두 도구를 한 번 글로벌 설치해 두면, 모든 AI 에이전트와 터미널에서 `code-nav` 단일 명령어로 즉시 동작합니다 (시동 30ms).
+## Installation
 
 ```bash
-bun add -g @ast-grep/cli
-bun add -g github:djoo-lgcns/code-nav
+# Bun
+bun add -g @ast-grep/cli github:djoo-lgcns/code-nav
+
+# Node.js / npm
+npm install -g @ast-grep/cli github:djoo-lgcns/code-nav
 ```
-*(Node.js 사용 시: `npm i -g @ast-grep/cli github:djoo-lgcns/code-nav`)*
 
 ---
 
-## Setup (에이전트 등록)
+## MCP Registration
 
-글로벌 설치가 완료되면 복잡한 인자나 URL 없이 `code-nav` 단일 바이너리로 등록됩니다.
-
-### A. Claude Code
+### Claude Code
 ```bash
 claude mcp add code-nav -- code-nav
 ```
 
-### B. Kiro CLI
+### Kiro CLI
 ```bash
 kiro-cli mcp add code-nav --command code-nav
 ```
 
-### C. Antigravity / Cursor / Windsurf
+### Antigravity / Cursor / Windsurf
 `mcp_config.json` 또는 `mcp.json`:
 ```json
 {
@@ -78,22 +76,28 @@ kiro-cli mcp add code-nav --command code-nav
 ```
 
 <details>
-<summary>글로벌 설치 없이 실행하고 싶을 때 (Zero-Install)</summary>
+<summary>Zero-Install (bunx / npx)</summary>
 
-글로벌 설치를 원치 않는 경우 `bunx` 또는 `npx`로도 즉시 등록 가능합니다:
+글로벌 설치 없이 원격 저장소에서 직접 실행할 수도 있습니다:
+
 ```bash
-# Claude Code:
+# Claude Code
 claude mcp add code-nav -- bunx github:djoo-lgcns/code-nav
-# 또는 Kiro CLI:
+# 또는
+claude mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
+
+# Kiro CLI
 kiro-cli mcp add code-nav -- bunx github:djoo-lgcns/code-nav
+# 또는
+kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 </details>
 
 ---
 
-## Agent Directive (Optional)
+## Agent Guidelines (Optional)
 
-`AGENTS.md` 또는 `team.md`(AI-DLC Workflow 환경에서)에 추가하여 에이전트의 탐색 패턴을 강제할 수 있습니다:
+`AGENTS.md` 또는 `team.md`에 추가하여 에이전트의 탐색 패턴을 지정할 수 있습니다:
 
 ```markdown
 ## Code Navigation
@@ -106,8 +110,6 @@ kiro-cli mcp add code-nav -- bunx github:djoo-lgcns/code-nav
 
 ## CLI Usage
 
-터미널 직접 실행 및 디버깅:
-
 ```bash
 # 정의 탐색 (단일 심볼 및 클래스.메서드)
 code-nav def cancel backend/
@@ -119,7 +121,6 @@ code-nav outline src/OrderService.java
 # 호출처 및 인스턴스화 위치 탐색
 code-nav refs cancel backend/
 ```
-*(글로벌 미설치 시 `code-nav` 대신 `bunx github:djoo-lgcns/code-nav`로 실행 가능)*
 
 ---
 
