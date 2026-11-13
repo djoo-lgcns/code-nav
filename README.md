@@ -97,7 +97,9 @@ kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 
 ## Agent Guidelines (Optional)
 
-`AGENTS.md` 또는 `team.md`에 추가하여 에이전트의 탐색 패턴을 지정할 수 있습니다:
+에이전트가 `code-nav`를 우선 사용하도록 규칙을 지정할 수 있습니다:
+* **일반 프로젝트**: 프로젝트 루트의 `AGENTS.md`
+* **AI-DLC 워크플로우 환경**: `aidlc/spaces/<space>/memory/team.md`
 
 ```markdown
 ## Code Navigation
