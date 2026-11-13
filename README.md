@@ -1,59 +1,72 @@
-# CodeNav MCP Server
+# code-nav
 
-> **Zero-Noise AST Code Navigation MCP Server for AI Coding Agents**  
-> GitHub: [https://github.com/djoo-lgcns/code-nav](https://github.com/djoo-lgcns/code-nav)
+> Zero-noise AST code navigation MCP server for AI coding agents.
 
-AI 코딩 에이전트(Claude Code, Antigravity, Kiro CLI, Cursor 등)가 대규모 코드베이스를 탐색할 때 발생하는 **주석 노이즈, 변수명 충돌, 수만 토큰의 파일 열람 낭비를 제거**하는 초경량(14KB) Model Context Protocol(MCP) 서버입니다.
+LLM 에이전트가 코드베이스를 탐색할 때 발생하는 `grep` 주석/변수 노이즈와 무분별한 전체 파일 읽기(`read_file`)로 인한 컨텍스트 낭비를 방지합니다. 무거운 LSP 데몬 없이 `ast-grep`(Tree-sitter)을 통해 선언부와 구조만 밀리초 단위로 추출합니다.
 
-무거운 Language Server(LSP) 데몬 없이, Rust 기반 AST 엔진(`ast-grep`)의 표준 Tree-sitter 심볼 추출기를 통해 **Java, TypeScript, Python, Go, Rust, C++** 등 다양한 언어의 선언부와 구조를 밀리초 단위로 파악합니다.
-
----
-
-## 1. 왜 필요한가? (문제 해결)
-
-* **Naive Grep의 한계**: `grep cancel`을 실행하면 주석, 로그 메시지, 변수명 등 수십 줄의 노이즈가 컨텍스트 윈도우를 오염시킵니다.
-* **대형 파일 열람 낭비**: 단순 메서드 시그니처 하나를 확인하기 위해 500~1,000줄의 파일 전체를 읽으면서 비싼 토큰과 추론 시간을 소모합니다.
-* **실측 편익**: Kiro CLI 실제 벤치마크 결과, `code-nav` 도입 시 **도구 왕복 횟수 25% 단축, 응답 지연 시간 33% 단축, API 소비 크레딧 33% 절감**이 검증되었습니다.
+```mermaid
+flowchart LR
+    Agent["AI Agent<br/>(Claude / Kiro / Antigravity)"] -->|"stdio MCP"| CodeNav["code-nav<br/>(14KB Node.js)"]
+    CodeNav -->|"outline --json"| AstGrep["ast-grep Engine<br/>(Tree-sitter AST)"]
+    AstGrep -->|"Structured Symbols<br/>(class, method, range)"| CodeNav
+    CodeNav -->|"Zero-Noise Context<br/>(L81: public boolean cancel)"| Agent
+```
 
 ---
 
-## 2. 전제 조건
+## Tools
 
-* **Node.js** (v18 이상)
-* **ast-grep** (글로벌 설치)
+* **`code_nav_def`**: AST 기반 정의 선언부 탐색. 주석/문자열/변수를 배제하고 클래스, 인터페이스, 함수, 메서드만 반환 (`OrderService.cancel` 형식 지원).
+* **`code_nav_outline`**: 파일 심볼 계층 구조와 라인 번호 확인. 파일 본문을 읽기 전 구조 파악용.
+* **`code_nav_refs`**: AST 패턴(`$OBJ.method($$$)`) 기반 호출부 및 인스턴스화 위치 탐색.
+* **`code_nav_repomap`**: 디렉터리 내 핵심 선언부(Class/Interface) 요약 맵 생성.
+
+---
+
+## Benchmark (vs Naive Exploration)
+
+Kiro CLI (`claude-haiku-5.5`) 환경에서 Spring Boot 샘플 프로젝트 동일 Intent 실행 실측치:
+
+| Metric | Without MCP (`grep` + `read`) | With `code-nav` | Delta |
+| :--- | :---: | :---: | :---: |
+| **API Requests** | 4 calls | **3 calls** | **-25%** |
+| **Tool Cycles** | 3 cycles | **2 cycles** | **-33%** |
+| **Turn Latency** | 13.4s | **8.9s** | **-33%** |
+| **File Reading** | Full file (115 lines) | **Bounded read (25 lines)** | **-78% lines** |
+| **Credit Cost** | 0.0164 | **0.0109** | **-33%** |
+
+*전체 파일을 읽고 줄 번호를 추적하는 CoT(Thinking) 토큰 생성이 54%(570자 $\rightarrow$ 260자) 감소하고, 도구 왕복 1회 단축으로 매 턴 누적 전송되는 14,000 토큰의 입력이 생략됨.*
+
+---
+
+## Prerequisites
+
+* **Node.js** >= 18
+* **ast-grep**
   ```bash
-  # Windows (winget 또는 npm)
-  winget install ast-grep.ast-grep
-  # 또는
-  npm install -g @ast-grep/cli
+  # macOS / Linux
+  npm install -g @ast-grep/cli  # or brew install ast-grep
 
-  # macOS (Homebrew 또는 npm)
-  brew install ast-grep
-  # 또는
-  npm install -g @ast-grep/cli
-
-  # Linux (npm 또는 Cargo)
-  npm install -g @ast-grep/cli
+  # Windows
+  winget install ast-grep.ast-grep  # or npm install -g @ast-grep/cli
   ```
 
 ---
 
-## 3. 에이전트 등록 (Quick Start)
+## Setup
 
-`code-nav`는 기본적으로 표준 Stdio MCP 서버로 동작합니다. 사용 중인 AI 도구에 한 줄로 등록할 수 있습니다.
-
-### A. Claude Code
+### Claude Code
 ```bash
 claude mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 
-### B. Kiro CLI
+### Kiro CLI
 ```bash
 kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 
-### C. Antigravity / Cursor / Windsurf
-설정 파일(`mcp_config.json` 또는 `mcp.json`)의 `mcpServers` 항목에 추가:
+### Antigravity / Cursor / Windsurf
+`mcp_config.json` 또는 `mcp.json`:
 ```json
 {
   "mcpServers": {
@@ -67,47 +80,36 @@ kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 
 ---
 
-## 4. 제공되는 도구 (Tools)
+## Agent Directive (Optional)
 
-| MCP 도구명 | 파라미터 | 설명 |
-| :--- | :--- | :--- |
-| **`code_nav_def`** | `symbol` (필수), `path` (선택) | 클래스, 인터페이스, 함수, 메서드의 **정의 선언부만 추출** (단일 심볼 및 `OrderService.cancel` 형식 지원) |
-| **`code_nav_outline`** | `filePath` (필수) | 파일 전체를 열지 않고 **클래스/메서드/필드 계층 구조와 라인 번호 요약** |
-| **`code_nav_refs`** | `symbol` (필수), `path` (선택) | 심볼의 **호출부(Call sites) 및 `new` 인스턴스화 위치만 AST 패턴으로 추출** |
-| **`code_nav_repomap`** | `path` (선택) | 디렉터리 내 핵심 선언부(Class, Interface)의 **고수준 요약 맵 생성** |
-
----
-
-## 5. 권장 워크플로우 (AGENTS.md 연동)
-
-별도의 프롬프트를 주지 않아도 도구 Description에 의해 자동 호출되지만, 팀 단위에서 토큰 절약 원칙을 에이전트에게 강제하고 싶다면 프로젝트의 `AGENTS.md` 또는 AI-DLC의 `team.md`에 다음 지침을 추가하세요.
+`AGENTS.md` 또는 `team.md`에 추가하여 에이전트의 탐색 패턴을 강제할 수 있습니다:
 
 ```markdown
-## Code Navigation Guidelines
-1. **Entrypoint Search**: Use `code_nav_def(symbol)` FIRST instead of grep when finding class/method declarations.
-2. **Bounded Reading**: Use `code_nav_outline(filePath)` before opening large files, and read only targeted line ranges (±20 lines).
-3. **Call Sites**: Use `code_nav_refs(symbol)` to trace invocations without regex noise.
+## Code Navigation
+1. Find definitions: Call `code_nav_def(symbol)` first (avoid grep noise).
+2. Inspect structure: Call `code_nav_outline(filePath)` before opening files >100 lines.
+3. Bounded reading: Read only targeted ranges (±20 lines) around target symbols.
 ```
 
 ---
 
-## 6. CLI 직접 사용 (선택 사항)
+## CLI Usage
 
-터미널에서 직접 도구를 테스트하거나 스크립트에서 호출할 수도 있습니다:
+터미널 직접 실행 및 디버깅:
 
 ```bash
-# 심볼 정의 탐색 (단일 심볼 및 클래스.메서드)
+# 정의 탐색 (단일 심볼 및 클래스.메서드)
 npx -y github:djoo-lgcns/code-nav def cancel backend/
 npx -y github:djoo-lgcns/code-nav def OrderService.cancel backend/
 
-# 파일 아웃라인 확인 (라인 번호 확인 후 필요한 범위만 열람)
-npx -y github:djoo-lgcns/code-nav outline src/OrderController.java
+# 파일 심볼 계층 구조 확인
+npx -y github:djoo-lgcns/code-nav outline src/OrderService.java
 
-# 호출처 및 new 인스턴스화 위치 탐색
+# 호출처 및 인스턴스화 위치 탐색
 npx -y github:djoo-lgcns/code-nav refs cancel backend/
 ```
 
 ---
 
-## 라이선스
-MIT License.
+## License
+MIT
