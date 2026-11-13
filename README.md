@@ -41,7 +41,7 @@ Kiro CLI (`claude-haiku-5.5`) 환경에서 Spring Boot 샘플 프로젝트 동�
 
 ## Prerequisites
 
-* **Node.js** >= 18
+* **Bun** (추천: 시작 시간 ~40ms) 또는 **Node.js** (>= 18)
 * **ast-grep**
   ```bash
   # macOS / Linux
@@ -55,28 +55,39 @@ Kiro CLI (`claude-haiku-5.5`) 환경에서 Spring Boot 샘플 프로젝트 동�
 
 ## Setup
 
-### Claude Code
+`code-nav`는 **Bun(`bunx`)**과 **Node.js(`npx`)**를 모두 완벽하게 지원합니다.
+
+### A. Claude Code
 ```bash
+# Bun (추천)
+claude mcp add code-nav -- bunx github:djoo-lgcns/code-nav
+
+# Node.js
 claude mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 
-### Kiro CLI
+### B. Kiro CLI
 ```bash
+# Bun (추천)
+kiro-cli mcp add code-nav -- bunx github:djoo-lgcns/code-nav
+
+# Node.js
 kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 ```
 
-### Antigravity / Cursor / Windsurf
+### C. Antigravity / Cursor / Windsurf
 `mcp_config.json` 또는 `mcp.json`:
 ```json
 {
   "mcpServers": {
     "code-nav": {
-      "command": "npx",
-      "args": ["-y", "github:djoo-lgcns/code-nav"]
+      "command": "bunx",
+      "args": ["github:djoo-lgcns/code-nav"]
     }
   }
 }
 ```
+*(Node.js 환경에서는 `"command": "npx"`, `"args": ["-y", "github:djoo-lgcns/code-nav"]`로 설정)*
 
 ---
 
@@ -98,16 +109,17 @@ kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 터미널 직접 실행 및 디버깅:
 
 ```bash
-# 정의 탐색 (단일 심볼 및 클래스.메서드)
-npx -y github:djoo-lgcns/code-nav def cancel backend/
-npx -y github:djoo-lgcns/code-nav def OrderService.cancel backend/
+# 정의 탐색 (Bun: ~40ms / Node: npx)
+bunx github:djoo-lgcns/code-nav def cancel backend/
+bunx github:djoo-lgcns/code-nav def OrderService.cancel backend/
 
 # 파일 심볼 계층 구조 확인
-npx -y github:djoo-lgcns/code-nav outline src/OrderService.java
+bunx github:djoo-lgcns/code-nav outline src/OrderService.java
 
 # 호출처 및 인스턴스화 위치 탐색
-npx -y github:djoo-lgcns/code-nav refs cancel backend/
+bunx github:djoo-lgcns/code-nav refs cancel backend/
 ```
+*(Node.js 환경에서는 `bunx` 대신 `npx -y`로 동일하게 실행 가능)*
 
 ---
 
