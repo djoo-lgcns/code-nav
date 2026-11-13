@@ -5,7 +5,7 @@
 
 AI 에이전트(Claude Code, Antigravity, Kiro CLI, Cursor 등)가 `grep`으로 코드를 탐색할 때 겪는 **주석 노이즈, 변수명 충돌, 수만 토큰의 파일 열람 낭비를 제거**하는 초경량(13KB) Model Context Protocol(MCP) 서버입니다.
 
-Language Server(LSP) 데몬 없이, 내장된 AST 엔진(`ast-grep`)을 통해 **Java, TypeScript, JavaScript, Python** 4개 언어의 심볼 선언과 구조를 즉시 파악합니다.
+Language Server(LSP) 데몬 없이, Tree-sitter 표준 아웃라인 스키마를 탑재한 AST 엔진(`ast-grep`)을 통해 **Java, TypeScript, JavaScript, Python, Go, Rust, C++** 등 다양한 언어의 심볼 선언과 구조를 즉시 파악합니다. 수동 언어 규칙 유지보수 없이 표준 심볼 체계를 따릅니다.
 
 ---
 

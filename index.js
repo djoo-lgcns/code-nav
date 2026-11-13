@@ -4,11 +4,7 @@ var __require = /* @__PURE__ */ createRequire(import.meta.url);
 
 // src/index.ts
 import { spawnSync } from "child_process";
-import * as path from "path";
 import * as readline from "readline";
-function escapeRegex(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\\\$&");
-}
 var IGNORE_PATTERNS = [
   /(^|[/\\])(node_modules|build|dist|target|\.git|\.gradle|__pycache__|\.venv|venv|\.pytest_cache)($|[/\\])/i
 ];
@@ -46,73 +42,63 @@ function runAstGrepRule(yamlRule, targetPath = ".") {
     return [];
   }
 }
-function findDefinitions(symbol, targetPath = ".") {
-  const safeSym = escapeRegex(symbol);
-  const javaRule = `
-id: JavaDef
-language: java
-rule:
-  any:
-    - kind: class_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: interface_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: enum_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: record_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: method_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: constructor_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-`;
-  const tsRule = `
-id: TSDef
-language: ts
-rule:
-  any:
-    - kind: class_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: interface_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: type_alias_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: enum_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: function_declaration
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: method_definition
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: variable_declarator
-      has:
-        field: name
-        regex: "^${safeSym}$"
-`;
-  const pythonRule = `
-id: PyDef
-language: python
-rule:
-  any:
-    - kind: class_definition
-      has: { field: name, regex: "^${safeSym}$" }
-    - kind: function_definition
-      has: { field: name, regex: "^${safeSym}$" }
-`;
-  const results = [
-    ...runAstGrepRule(javaRule, targetPath),
-    ...runAstGrepRule(tsRule, targetPath),
-    ...runAstGrepRule(pythonRule, targetPath)
-  ];
-  const seen = new Set;
-  return results.filter((r) => {
-    if (isIgnoredPath(r.file))
-      return false;
-    const key = `${r.file}:${r.line}`;
-    if (seen.has(key))
-      return false;
-    seen.add(key);
-    return true;
+function runAstGrepOutline(targetPath = ".") {
+  const res = spawnSync("ast-grep", ["outline", "--items", "structure", "--view", "expanded", "--json", targetPath], {
+    encoding: "utf-8",
+    maxBuffer: 50 * 1024 * 1024
   });
+  if (res.error) {
+    if (res.error.code === "ENOENT") {
+      throw new Error("'ast-grep' binary is not found in PATH. Please install it to use code-nav: 'npm install -g @ast-grep/cli' or 'winget install ast-grep.ast-grep' (Windows) or 'brew install ast-grep' (macOS).");
+    }
+    throw res.error;
+  }
+  if (!res.stdout)
+    return [];
+  try {
+    const list = JSON.parse(res.stdout);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+function findDefinitions(symbol, targetPath = ".") {
+  const outlineResults = runAstGrepOutline(targetPath);
+  const matches = [];
+  const seen = new Set;
+  for (const fileResult of outlineResults) {
+    if (isIgnoredPath(fileResult.path))
+      continue;
+    const checkItem = (item, parentName) => {
+      const isMatch = item.name === symbol || (parentName ? `${parentName}.${item.name}` === symbol : false);
+      if (isMatch) {
+        const line = (item.range?.start?.line ?? 0) + 1;
+        const key = `${fileResult.path}:${line}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const rawSig = item.signature || (parentName ? `${parentName}.${item.name}` : item.name);
+          const firstLine = rawSig.split(`
+`)[0].trim();
+          matches.push({
+            file: fileResult.path,
+            line,
+            kind: item.symbolType || item.astKind || "Symbol",
+            signature: firstLine.length > 120 ? firstLine.slice(0, 117) + "..." : firstLine
+          });
+        }
+      }
+      if (item.members && Array.isArray(item.members)) {
+        for (const member of item.members) {
+          checkItem(member, item.name);
+        }
+      }
+    };
+    for (const item of fileResult.items || []) {
+      checkItem(item);
+    }
+  }
+  matches.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  return matches;
 }
 function findReferences(symbol, targetPath = ".") {
   const javaRule = `
@@ -158,86 +144,52 @@ rule:
   });
 }
 function outlineFile(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  let lang = "ts";
-  let rule = "";
-  if (ext === ".java") {
-    lang = "java";
-    rule = `
-id: JavaOutline
-language: java
-rule:
-  any:
-    - kind: class_declaration
-    - kind: interface_declaration
-    - kind: enum_declaration
-    - kind: method_declaration
-    - kind: constructor_declaration
-`;
-  } else if (ext === ".py") {
-    lang = "python";
-    rule = `
-id: PyOutline
-language: python
-rule:
-  any:
-    - kind: class_definition
-    - kind: function_definition
-`;
-  } else {
-    lang = "ts";
-    rule = `
-id: TSOutline
-language: ts
-rule:
-  any:
-    - kind: class_declaration
-    - kind: interface_declaration
-    - kind: type_alias_declaration
-    - kind: function_declaration
-    - kind: method_definition
-`;
+  const fileResults = runAstGrepOutline(filePath);
+  const results = [];
+  for (const fileResult of fileResults) {
+    const collectItems = (item, depth = 0) => {
+      const line = (item.range?.start?.line ?? 0) + 1;
+      const rawSig = item.signature || `${item.symbolType} ${item.name}`;
+      const firstLine = rawSig.split(`
+`)[0].trim();
+      const indent = "  ".repeat(depth);
+      const prefix = depth > 0 ? `${indent}└─ ` : "";
+      results.push({
+        file: fileResult.path,
+        line,
+        kind: item.symbolType || item.astKind || "Symbol",
+        signature: `${prefix}[${item.symbolType}] ${firstLine}`
+      });
+      if (item.members && Array.isArray(item.members)) {
+        for (const member of item.members) {
+          collectItems(member, depth + 1);
+        }
+      }
+    };
+    for (const item of fileResult.items || []) {
+      collectItems(item);
+    }
   }
-  const results = runAstGrepRule(rule, filePath);
   results.sort((a, b) => a.line - b.line);
   return results;
 }
 function generateRepoMap(targetPath = ".") {
-  const javaRule = `
-id: JavaMap
-language: java
-rule:
-  any:
-    - kind: class_declaration
-    - kind: interface_declaration
-`;
-  const tsRule = `
-id: TSMap
-language: ts
-rule:
-  any:
-    - kind: class_declaration
-    - kind: interface_declaration
-`;
-  const pyRule = `
-id: PyMap
-language: python
-rule:
-  any:
-    - kind: class_definition
-`;
-  const all = [
-    ...runAstGrepRule(javaRule, targetPath),
-    ...runAstGrepRule(tsRule, targetPath),
-    ...runAstGrepRule(pyRule, targetPath)
-  ];
+  const fileResults = runAstGrepOutline(targetPath);
   const map = new Map;
-  for (const m of all) {
-    if (isIgnoredPath(m.file))
+  for (const fileResult of fileResults) {
+    if (isIgnoredPath(fileResult.path))
       continue;
-    const list = map.get(m.file) || [];
-    list.push(`L${m.line}: ${m.signature}`);
-    map.set(m.file, list);
+    const items = [];
+    for (const item of fileResult.items || []) {
+      const line = (item.range?.start?.line ?? 0) + 1;
+      const rawSig = item.signature || `${item.symbolType} ${item.name}`;
+      const firstLine = rawSig.split(`
+`)[0].trim();
+      items.push(`L${line}: [${item.symbolType}] ${firstLine}`);
+    }
+    if (items.length > 0) {
+      map.set(fileResult.path, items);
+    }
   }
   return map;
 }

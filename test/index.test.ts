@@ -68,6 +68,12 @@ def calculate_tax(subtotal):
     expect(res.length).toBe(1);
     expect(res[0].file).toContain("Account.java");
     expect(res[0].file).not.toContain("node_modules");
+
+    // Qualified member definition search
+    const memberRes = findDefinitions("Account.cancel", FIXTURE_DIR);
+    expect(memberRes.length).toBe(1);
+    expect(memberRes[0].file).toContain("Account.java");
+    expect(memberRes[0].signature).toContain("cancel");
   });
 
   test("3. Python definition (PaymentProcessor & calculate_tax)", () => {
