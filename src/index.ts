@@ -293,7 +293,7 @@ function runMcpServer() {
           result: {
             protocolVersion: "2024-11-05",
             capabilities: { tools: {} },
-            serverInfo: { name: "code-nav-mcp", version: "1.0.0" },
+            serverInfo: { name: "code-nav-mcp", version: "1.1.0" },
           },
         });
         return;
@@ -499,10 +499,10 @@ if (import.meta.main || process.argv[1]?.endsWith("index.js")) {
         }
       }
     } else if (cmd === "--version" || cmd === "-v") {
-      console.log("code-nav 1.0.0 (AST-Powered MCP Server)");
+      console.log("code-nav 1.1.0 (AST-Powered MCP Server)");
     } else {
       console.log(`
-CodeNav v1.0.0 - AST-Powered Code Navigation MCP Server
+CodeNav v1.1.0 - AST-Powered Code Navigation MCP Server
 GitHub: https://github.com/djoo-lgcns/code-nav
 
 Usage:

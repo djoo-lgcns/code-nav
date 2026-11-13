@@ -1,6 +1,6 @@
 {
   "name": "@djoo-lgcns/code-nav",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Zero-Noise AST Code Navigation MCP Server for AI Coding Agents",
   "main": "index.js",
   "type": "module",
