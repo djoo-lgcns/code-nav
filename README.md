@@ -39,40 +39,30 @@ Kiro CLI (`claude-haiku-5.5`) 환경에서 Spring Boot 샘플 프로젝트 동�
 
 ---
 
-## Prerequisites
+## Installation (추천: 단 2줄)
 
-* **Bun** (추천: 시작 시간 ~40ms) 또는 **Node.js** (>= 18)
-* **ast-grep**
-  ```bash
-  # macOS / Linux
-  npm install -g @ast-grep/cli  # or brew install ast-grep
+Bun으로 두 도구를 한 번 글로벌 설치해 두면, 모든 AI 에이전트와 터미널에서 `code-nav` 단일 명령어로 즉시 동작합니다 (시동 30ms).
 
-  # Windows
-  winget install ast-grep.ast-grep  # or npm install -g @ast-grep/cli
-  ```
+```bash
+bun add -g @ast-grep/cli
+bun add -g github:djoo-lgcns/code-nav
+```
+*(Node.js 사용 시: `npm i -g @ast-grep/cli github:djoo-lgcns/code-nav`)*
 
 ---
 
-## Setup
+## Setup (에이전트 등록)
 
-`code-nav`는 **Bun(`bunx`)**과 **Node.js(`npx`)**를 모두 완벽하게 지원합니다.
+글로벌 설치가 완료되면 복잡한 인자나 URL 없이 `code-nav` 단일 바이너리로 등록됩니다.
 
 ### A. Claude Code
 ```bash
-# Bun (추천)
-claude mcp add code-nav -- bunx github:djoo-lgcns/code-nav
-
-# Node.js
-claude mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
+claude mcp add code-nav -- code-nav
 ```
 
 ### B. Kiro CLI
 ```bash
-# Bun (추천)
-kiro-cli mcp add code-nav -- bunx github:djoo-lgcns/code-nav
-
-# Node.js
-kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
+kiro-cli mcp add code-nav --command code-nav
 ```
 
 ### C. Antigravity / Cursor / Windsurf
@@ -81,13 +71,23 @@ kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 {
   "mcpServers": {
     "code-nav": {
-      "command": "bunx",
-      "args": ["github:djoo-lgcns/code-nav"]
+      "command": "code-nav"
     }
   }
 }
 ```
-*(Node.js 환경에서는 `"command": "npx"`, `"args": ["-y", "github:djoo-lgcns/code-nav"]`로 설정)*
+
+<details>
+<summary>글로벌 설치 없이 실행하고 싶을 때 (Zero-Install)</summary>
+
+글로벌 설치를 원치 않는 경우 `bunx` 또는 `npx`로도 즉시 등록 가능합니다:
+```bash
+# Claude Code:
+claude mcp add code-nav -- bunx github:djoo-lgcns/code-nav
+# 또는 Kiro CLI:
+kiro-cli mcp add code-nav -- bunx github:djoo-lgcns/code-nav
+```
+</details>
 
 ---
 
@@ -109,17 +109,17 @@ kiro-cli mcp add code-nav -- npx -y github:djoo-lgcns/code-nav
 터미널 직접 실행 및 디버깅:
 
 ```bash
-# 정의 탐색 (Bun: ~40ms / Node: npx)
-bunx github:djoo-lgcns/code-nav def cancel backend/
-bunx github:djoo-lgcns/code-nav def OrderService.cancel backend/
+# 정의 탐색 (단일 심볼 및 클래스.메서드)
+code-nav def cancel backend/
+code-nav def OrderService.cancel backend/
 
 # 파일 심볼 계층 구조 확인
-bunx github:djoo-lgcns/code-nav outline src/OrderService.java
+code-nav outline src/OrderService.java
 
 # 호출처 및 인스턴스화 위치 탐색
-bunx github:djoo-lgcns/code-nav refs cancel backend/
+code-nav refs cancel backend/
 ```
-*(Node.js 환경에서는 `bunx` 대신 `npx -y`로 동일하게 실행 가능)*
+*(글로벌 미설치 시 `code-nav` 대신 `bunx github:djoo-lgcns/code-nav`로 실행 가능)*
 
 ---
 
